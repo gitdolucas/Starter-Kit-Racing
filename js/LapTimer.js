@@ -89,9 +89,6 @@ export class LapTimer {
 		const style = document.createElement( 'style' );
 		style.textContent = `
 			#lap-timer {
-				position: absolute;
-				top: 12px;
-				left: 12px;
 				color: #fff;
 				font: 600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 				background: rgba(0,0,0,0.5);
@@ -101,7 +98,6 @@ export class LapTimer {
 				text-shadow: 0 1px 2px rgba(0,0,0,0.6);
 				user-select: none;
 				pointer-events: none;
-				z-index: 10;
 				min-width: 140px;
 				backdrop-filter: blur(8px);
 				-webkit-backdrop-filter: blur(8px);
@@ -121,7 +117,7 @@ export class LapTimer {
 			`<div class="current">${ placeholder }</div>` +
 			`<div class="row stat"><span class="label">LAST</span><span class="last">${ placeholder }</span></div>` +
 			`<div class="row stat"><span class="label">BEST</span><span class="best">${ formatTime( this.bestLap ) }</span></div>`;
-		document.body.appendChild( el );
+		( document.getElementById( 'hud-column' ) || document.body ).appendChild( el );
 
 		this.lapEl = el.querySelector( '.lap' );
 		this.currentEl = el.querySelector( '.current' );

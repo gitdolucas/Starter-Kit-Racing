@@ -26,7 +26,7 @@ export const TRACK_CELLS = [
 	[  0,  2, 'track-corner',   22 ],
 ];
 
-const DECO_CELLS = [
+export const DECO_CELLS = [
 	[ -4, -2, 'decoration-tents', 10 ],
 	[ -1, -4, 'decoration-tents', 22 ],
 	[ -1,  1, 'decoration-tents', 22 ],
