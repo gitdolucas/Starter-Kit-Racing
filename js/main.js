@@ -266,6 +266,8 @@ async function init() {
 
 		vehicle.update( dt, input );
 
+		if ( input.cycleCamera ) cam.advanceMode( vehicle.spherePos );
+
 		dirLight.position.set(
 			vehicle.spherePos.x + 11.4,
 			15,
@@ -274,7 +276,8 @@ async function init() {
 
 		const mv = vehicle.modelVelocity;
 		_camLead.set( 0, 0, 1 ).applyQuaternion( vehicle.container.quaternion ).multiplyScalar( Math.sqrt( mv.x * mv.x + mv.z * mv.z ) );
-		cam.update( dt, vehicle.spherePos, _camLead );
+		const speedNorm = Math.min( Math.abs( vehicle.linearSpeed ) / MAX_SPEED, 1 );
+		cam.update( dt, vehicle.spherePos, _camLead, vehicle, speedNorm );
 		particles.update( dt, vehicle );
 		driftMarks.update( dt, vehicle );
 		audio.update( dt, vehicle.linearSpeed / MAX_SPEED, input.z, vehicle.driftIntensity );
