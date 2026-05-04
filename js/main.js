@@ -12,6 +12,7 @@ import { SmokeTrails } from './Particles.js';
 import { DriftMarks } from './DriftMarks.js';
 import { GameAudio } from './Audio.js';
 import { LapTimer } from './LapTimer.js';
+import { CameraHud } from './CameraHud.js';
 import { ColorMapGLTFLoader } from './Loader.js';
 
 
@@ -233,6 +234,10 @@ async function init() {
 
 	const lapTimer = new LapTimer( customCells, mapParam );
 
+	const cameraHud = new CameraHud( {
+		onSwap: () => cam.advanceMode( vehicle.spherePos ),
+	} );
+
 	const _forward = new THREE.Vector3();
 	const _camLead = new THREE.Vector3();
 
@@ -284,6 +289,8 @@ async function init() {
 
 		const hasInput = input.touchActive || Math.abs( input.x ) > 0.05 || Math.abs( input.z ) > 0.05;
 		lapTimer.update( dt, vehicle.spherePos, hasInput );
+
+		cameraHud.update( cam );
 
 		renderer.render( scene, cam.camera );
 

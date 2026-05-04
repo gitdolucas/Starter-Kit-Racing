@@ -231,6 +231,13 @@ export class Camera {
 
 	}
 
+	/** Mode index for HUD highlight (0 eagle, 1 third, 2 hood). */
+	getHudMode() {
+
+		return this.transitionActive ? this.transitionTargetMode : this.steadyMode;
+
+	}
+
 	_applyLeadDeadzone( target, velocity, rightXZ, forwardXZ, smoothed, initializedFlag, dt ) {
 
 		const radius = this.deadzoneRadius;
