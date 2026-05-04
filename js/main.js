@@ -12,6 +12,7 @@ import { SmokeTrails, NosTaillightTrails } from './Particles.js';
 import { DriftMarks } from './DriftMarks.js';
 import { GameAudio } from './Audio.js';
 import { LapTimer } from './LapTimer.js';
+import { CameraHud } from './CameraHud.js';
 import { NosHud } from './NosHud.js';
 import { ColorMapGLTFLoader } from './Loader.js';
 
@@ -236,6 +237,10 @@ async function init() {
 	const lapTimer = new LapTimer( customCells, mapParam );
 	const nosHud = new NosHud( controls );
 
+	const cameraHud = new CameraHud( {
+		onSwap: () => cam.advanceMode( vehicle.spherePos ),
+	} );
+
 	const _forward = new THREE.Vector3();
 	const _camLead = new THREE.Vector3();
 
@@ -269,6 +274,7 @@ async function init() {
 
 		vehicle.update( dt, input );
 
+		if ( input.cycleCamera ) cam.advanceMode( vehicle.spherePos );
 		nosHud.update( vehicle );
 
 		dirLight.position.set(
@@ -279,7 +285,8 @@ async function init() {
 
 		const mv = vehicle.modelVelocity;
 		_camLead.set( 0, 0, 1 ).applyQuaternion( vehicle.container.quaternion ).multiplyScalar( Math.sqrt( mv.x * mv.x + mv.z * mv.z ) );
-		cam.update( dt, vehicle.spherePos, _camLead, vehicle.nosIntensity );
+		const speedNorm = Math.min( Math.abs( vehicle.linearSpeed ) / MAX_SPEED, 1 );
+		cam.update( dt, vehicle.spherePos, _camLead, vehicle, speedNorm, vehicle.nosIntensity );
 		particles.update( dt, vehicle );
 		nosTrails.update( dt, vehicle );
 		driftMarks.update( dt, vehicle );
@@ -287,6 +294,8 @@ async function init() {
 
 		const hasInput = input.touchActive || Math.abs( input.x ) > 0.05 || Math.abs( input.z ) > 0.05;
 		lapTimer.update( dt, vehicle.spherePos, hasInput );
+
+		cameraHud.update( cam );
 
 		renderer.render( scene, cam.camera );
 
