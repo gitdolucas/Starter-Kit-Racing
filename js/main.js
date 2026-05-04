@@ -234,7 +234,7 @@ async function init() {
 	audio.init( cam.camera );
 
 	const lapTimer = new LapTimer( customCells, mapParam );
-	const nosHud = new NosHud();
+	const nosHud = new NosHud( controls );
 
 	const _forward = new THREE.Vector3();
 	const _camLead = new THREE.Vector3();

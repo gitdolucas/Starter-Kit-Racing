@@ -6,6 +6,8 @@ export class Controls {
 		this.x = 0;
 		this.z = 0;
 		this.nos = false;
+		/** Pointer / UI hold on the NOS button (see NosHud). */
+		this.nosUiHeld = false;
 
 		// Touch state
 		this.touchActive = false;
@@ -17,6 +19,11 @@ export class Controls {
 
 		window.addEventListener( 'keydown', ( e ) => this.keys[ e.code ] = true );
 		window.addEventListener( 'keyup', ( e ) => this.keys[ e.code ] = false );
+		window.addEventListener( 'blur', () => {
+
+			this.nosUiHeld = false;
+
+		} );
 
 		this.setupTouchUI();
 
@@ -161,12 +168,20 @@ export class Controls {
 		}
 
 		if ( this.keys[ 'KeyX' ] ) nos = true;
+		if ( this.nosUiHeld ) nos = true;
 
 		this.x = x;
 		this.z = z;
 		this.nos = nos;
 
 		return { x, z, touchActive: this.touchActive, nos };
+
+	}
+
+	/** Call from NOS HUD button pointer / keyboard hold. */
+	setNosUiHeld( held ) {
+
+		this.nosUiHeld = !! held;
 
 	}
 
