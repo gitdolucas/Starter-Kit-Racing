@@ -8,6 +8,10 @@ const SAMPLE_HZ = 25;
 const SAMPLE_DT = 1 / SAMPLE_HZ;
 const GHOST_OPACITY = 0.2;
 const PARTICLE_OPACITY_SCALE = 0.2;
+const DELTA_Y_OFFSET = 1.0;
+const DELTA_SPRITE_SCALE = .85;
+const DELTA_RED = '#d43f52';
+const DELTA_BLUE = '#2d63c9';
 
 /** Per-frame: pos(3) + quat(4) + linearSpeed, acceleration, inputX, nosBit, nosIntensity, driftIntensity */
 const FRAME_LEN = 13;
@@ -97,6 +101,33 @@ function parseRecording( raw ) {
 
 }
 
+function createDeltaLabel() {
+
+	const canvas = document.createElement( 'canvas' );
+	canvas.width = 512;
+	canvas.height = 192;
+
+	const texture = new THREE.CanvasTexture( canvas );
+	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.minFilter = THREE.LinearFilter;
+	texture.magFilter = THREE.LinearFilter;
+
+	const material = new THREE.SpriteMaterial( {
+		map: texture,
+		transparent: true,
+		depthWrite: false,
+	} );
+
+	const sprite = new THREE.Sprite( material );
+	sprite.visible = false;
+	sprite.renderOrder = 40;
+	sprite.scale.set( DELTA_SPRITE_SCALE, DELTA_SPRITE_SCALE * 0.375, 1 );
+	sprite.position.set( 0, DELTA_Y_OFFSET, 0 );
+
+	return { sprite, canvas, texture };
+
+}
+
 export class BestLapGhost {
 
 	constructor( scene, trackId, vehicleModel ) {
@@ -118,8 +149,22 @@ export class BestLapGhost {
 
 		this.ghostSmoke = new SmokeTrails( scene, { opacityScale: PARTICLE_OPACITY_SCALE } );
 		this.ghostNos = new NosTaillightTrails( scene, { opacityScale: PARTICLE_OPACITY_SCALE } );
+		const label = createDeltaLabel();
+		this.deltaLabel = label.sprite;
+		this.deltaCanvas = label.canvas;
+		this.deltaTexture = label.texture;
+		this.deltaLabelState = '';
+		this.ghostVehicle.container.add( this.deltaLabel );
+
+		this.ghostVisible = true;
 
 		this._loadFromStorage();
+
+	}
+
+	setGhostVisible( visible ) {
+
+		this.ghostVisible = visible !== false;
 
 	}
 
@@ -208,7 +253,80 @@ export class BestLapGhost {
 
 	}
 
-	update( dt, lapTimer ) {
+	_updateDeltaLabel( deltaSeconds ) {
+
+		if ( ! Number.isFinite( deltaSeconds ) ) {
+
+			this.deltaLabel.visible = false;
+			return;
+
+		}
+
+		const ahead = deltaSeconds > 0;
+		const color = ahead ? DELTA_BLUE : DELTA_RED;
+		const sign = ahead ? '+' : '-';
+		const txt = `${ sign } ${ Math.abs( deltaSeconds ).toFixed( 3 ) }s`;
+		const key = `${ color }|${ txt }`;
+
+		this.deltaLabel.visible = true;
+		if ( this.deltaLabelState === key ) return;
+
+		this.deltaLabelState = key;
+
+		const ctx = this.deltaCanvas.getContext( '2d' );
+		const w = this.deltaCanvas.width;
+		const h = this.deltaCanvas.height;
+		const pad = 16;
+		const bw = w - pad * 2;
+		const bh = h - pad * 2;
+		const bx = pad;
+		const by = pad;
+		const chipR = bh * 0.5;
+
+		ctx.clearRect( 0, 0, w, h );
+		ctx.fillStyle = color;
+		ctx.beginPath();
+		ctx.roundRect( bx, by, bw, bh, chipR );
+		ctx.fill();
+
+		ctx.fillStyle = '#ffffff';
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'middle';
+		ctx.font = 'bold 66px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif';
+		ctx.fillText( txt, w * 0.5, by + bh * 0.5 );
+
+		this.deltaTexture.needsUpdate = true;
+
+	}
+
+	_computeDeltaAtPlayer( frames, sampleDt, playerPosition, currentLapTime ) {
+
+		if ( ! playerPosition ) return null;
+
+		let bestIdx = 0;
+		let bestD2 = Infinity;
+
+		for ( let i = 0; i < frames.length; i ++ ) {
+
+			const f = frames[ i ];
+			const dx = f[ 0 ] - playerPosition.x;
+			const dz = f[ 2 ] - playerPosition.z;
+			const d2 = dx * dx + dz * dz;
+			if ( d2 < bestD2 ) {
+
+				bestD2 = d2;
+				bestIdx = i;
+
+			}
+
+		}
+
+		const ghostTimeAtPlayer = bestIdx * sampleDt;
+		return ghostTimeAtPlayer - currentLapTime;
+
+	}
+
+	update( dt, lapTimer, playerPosition ) {
 
 		const rec = this.recording;
 		const gv = this.ghostVehicle;
@@ -216,6 +334,9 @@ export class BestLapGhost {
 		if ( ! rec || ! lapTimer.enabled ) {
 
 			gv.container.visible = false;
+			this.deltaLabel.visible = false;
+			this.ghostSmoke.points.visible = false;
+			this.ghostNos.points.visible = false;
 			return;
 
 		}
@@ -227,6 +348,9 @@ export class BestLapGhost {
 		if ( n < 2 ) {
 
 			gv.container.visible = false;
+			this.deltaLabel.visible = false;
+			this.ghostSmoke.points.visible = false;
+			this.ghostNos.points.visible = false;
 			return;
 
 		}
@@ -286,7 +410,21 @@ export class BestLapGhost {
 
 		}
 
-		gv.container.visible = true;
+		if ( this.ghostVisible ) {
+
+			gv.container.visible = true;
+			this._updateDeltaLabel( this._computeDeltaAtPlayer( frames, sampleDt, playerPosition, lapTimer.currentLapTime ) );
+			this.ghostSmoke.points.visible = true;
+			this.ghostNos.points.visible = true;
+
+		} else {
+
+			gv.container.visible = false;
+			this.deltaLabel.visible = false;
+			this.ghostSmoke.points.visible = false;
+			this.ghostNos.points.visible = false;
+
+		}
 
 	}
 

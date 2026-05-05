@@ -43,10 +43,11 @@ function formatTime( t ) {
 
 export class LapTimer {
 
-	constructor( cells, trackId, onLapComplete ) {
+	constructor( cells, trackId, onLapComplete, onGhostVisibilityChange ) {
 
 		this.storageKey = STORAGE_PREFIX + ( trackId || 'default' );
 		this.onLapComplete = typeof onLapComplete === 'function' ? onLapComplete : null;
+		this.onGhostVisibilityChange = typeof onGhostVisibilityChange === 'function' ? onGhostVisibilityChange : null;
 		this.lap = 1;
 		this.bestLap = loadBest( this.storageKey );
 		this.lastLap = null;
@@ -111,6 +112,27 @@ export class LapTimer {
 			#lap-timer .label { opacity: 0.65; font-weight: 500; letter-spacing: 0.06em; }
 			#lap-timer .current { font: 700 24px/1.1 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-variant-numeric: tabular-nums; margin: 4px 0 6px; }
 			#lap-timer .stat { font-size: 12px; font-variant-numeric: tabular-nums; opacity: 0.9; }
+			#lap-timer .ghost-toggle {
+				pointer-events: auto;
+				cursor: pointer;
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				margin-top: 8px;
+				padding-top: 8px;
+				border-top: 1px solid rgba(255,255,255,0.15);
+				font-size: 12px;
+				font-weight: 500;
+				user-select: none;
+				opacity: 0.95;
+			}
+			#lap-timer .ghost-toggle input {
+				cursor: pointer;
+				width: 14px;
+				height: 14px;
+				flex-shrink: 0;
+				accent-color: #5af168;
+			}
 		`;
 		document.head.appendChild( style );
 
@@ -121,13 +143,21 @@ export class LapTimer {
 			'<div class="row"><span class="label">LAP</span><span class="lap">1</span></div>' +
 			`<div class="current">${ placeholder }</div>` +
 			`<div class="row stat"><span class="label">LAST</span><span class="last">${ placeholder }</span></div>` +
-			`<div class="row stat"><span class="label">BEST</span><span class="best">${ formatTime( this.bestLap ) }</span></div>`;
+			`<div class="row stat"><span class="label">BEST</span><span class="best">${ formatTime( this.bestLap ) }</span></div>` +
+			'<label class="ghost-toggle"><input type="checkbox" class="ghost-visible" checked /><span>Show ghost</span></label>';
 		document.body.appendChild( el );
 
 		this.lapEl = el.querySelector( '.lap' );
 		this.currentEl = el.querySelector( '.current' );
 		this.lastEl = el.querySelector( '.last' );
 		this.bestEl = el.querySelector( '.best' );
+
+		const ghostCb = el.querySelector( '.ghost-visible' );
+		ghostCb.addEventListener( 'change', () => {
+
+			if ( this.onGhostVisibilityChange ) this.onGhostVisibilityChange( ghostCb.checked );
+
+		} );
 
 	}
 

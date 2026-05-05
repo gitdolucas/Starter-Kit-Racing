@@ -240,6 +240,10 @@ async function init() {
 
 		bestLapGhost.commitLap( detail, vehicle );
 
+	}, ( visible ) => {
+
+		bestLapGhost.setGhostVisible( visible );
+
 	} );
 	const nosHud = new NosHud( controls );
 
@@ -303,7 +307,7 @@ async function init() {
 		const hasInput = input.touchActive || Math.abs( input.x ) > 0.05 || Math.abs( input.z ) > 0.05;
 		lapTimer.update( dt, vehicle.spherePos, hasInput );
 
-		bestLapGhost.update( dt, lapTimer );
+		bestLapGhost.update( dt, lapTimer, vehicle.spherePos );
 
 		cameraHud.update( cam );
 

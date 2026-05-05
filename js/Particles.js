@@ -74,6 +74,8 @@ export class SmokeTrails {
 		points.frustumCulled = false;
 		scene.add( points );
 
+		this.points = points;
+
 		this.posAttr = posAttr;
 		this.opacityAttr = opacityAttr;
 		this.sizeAttr = sizeAttr;
@@ -257,6 +259,8 @@ export class NosTaillightTrails {
 		const points = new THREE.Points( geometry, material );
 		points.frustumCulled = false;
 		scene.add( points );
+
+		this.points = points;
 
 		this.posAttr = posAttr;
 		this.opacityAttr = opacityAttr;
