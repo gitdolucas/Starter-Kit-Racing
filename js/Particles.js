@@ -15,7 +15,9 @@ const _nosSpawn = new THREE.Vector3();
 
 export class SmokeTrails {
 
-	constructor( scene ) {
+	constructor( scene, opts = {} ) {
+
+		this.opacityScale = typeof opts.opacityScale === 'number' ? opts.opacityScale : 1;
 
 		const positions = new Float32Array( POOL_SIZE * 3 );
 		const opacities = new Float32Array( POOL_SIZE );
@@ -144,7 +146,7 @@ export class SmokeTrails {
 			this.positions[ posIdx + 1 ] += p.velocity.y * dt;
 			this.positions[ posIdx + 2 ] += p.velocity.z * dt;
 
-			this.opacities[ i ] = ( 1 - t ) * 0.25;
+			this.opacities[ i ] = ( 1 - t ) * 0.25 * this.opacityScale;
 			this.sizes[ i ] = p.initialSize * ( 0.5 + t * 2.5 );
 
 			aliveCount ++;
@@ -197,7 +199,9 @@ const NOS_TRAIL_SPEED = 11;
 
 export class NosTaillightTrails {
 
-	constructor( scene ) {
+	constructor( scene, opts = {} ) {
+
+		this.opacityScale = typeof opts.opacityScale === 'number' ? opts.opacityScale : 1;
 
 		const positions = new Float32Array( NOS_POOL_SIZE * 3 );
 		const opacities = new Float32Array( NOS_POOL_SIZE );
@@ -351,7 +355,7 @@ export class NosTaillightTrails {
 			this.positions[ posIdx + 1 ] += p.velocity.y * dt;
 			this.positions[ posIdx + 2 ] += p.velocity.z * dt;
 
-			this.opacities[ i ] = ( 1 - t ) * ( 0.28 + vehicle.nosIntensity * 0.22 );
+			this.opacities[ i ] = ( 1 - t ) * ( 0.28 + vehicle.nosIntensity * 0.22 ) * this.opacityScale;
 			this.sizes[ i ] = p.initialSize * ( 0.45 + t * 1.9 );
 
 			aliveCount ++;

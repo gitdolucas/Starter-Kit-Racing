@@ -238,7 +238,7 @@ async function init() {
 	const bestLapGhost = new BestLapGhost( scene, mapParam, models[ 'vehicle-truck-yellow' ] );
 	const lapTimer = new LapTimer( customCells, mapParam, ( detail ) => {
 
-		bestLapGhost.commitLap( detail, vehicle.container );
+		bestLapGhost.commitLap( detail, vehicle );
 
 	} );
 	const nosHud = new NosHud( controls );
@@ -280,7 +280,7 @@ async function init() {
 
 		vehicle.update( dt, input );
 
-		bestLapGhost.record( dt, lapTimer, vehicle.container );
+		bestLapGhost.record( dt, lapTimer, vehicle );
 
 		if ( input.cycleCamera ) cam.advanceMode( vehicle.spherePos );
 		nosHud.update( vehicle );
@@ -303,7 +303,7 @@ async function init() {
 		const hasInput = input.touchActive || Math.abs( input.x ) > 0.05 || Math.abs( input.z ) > 0.05;
 		lapTimer.update( dt, vehicle.spherePos, hasInput );
 
-		bestLapGhost.updatePlayback( lapTimer );
+		bestLapGhost.update( dt, lapTimer );
 
 		cameraHud.update( cam );
 

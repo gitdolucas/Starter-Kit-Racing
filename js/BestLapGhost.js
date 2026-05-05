@@ -1,10 +1,16 @@
 import * as THREE from 'three';
+import { Vehicle } from './Vehicle.js';
+import { SmokeTrails, NosTaillightTrails } from './Particles.js';
 
-const SCHEMA = 1;
+const SCHEMA = 2;
 const STORAGE_PREFIX = 'racing.bestLapGhost.v';
 const SAMPLE_HZ = 25;
 const SAMPLE_DT = 1 / SAMPLE_HZ;
 const GHOST_OPACITY = 0.2;
+const PARTICLE_OPACITY_SCALE = 0.2;
+
+/** Per-frame: pos(3) + quat(4) + linearSpeed, acceleration, inputX, nosBit, nosIntensity, driftIntensity */
+const FRAME_LEN = 13;
 
 const _p0 = new THREE.Vector3();
 const _p1 = new THREE.Vector3();
@@ -35,6 +41,23 @@ function applyGhostMaterials( root ) {
 
 }
 
+function frameFromVehicle( container, vehicle ) {
+
+	const p = container.position;
+	const q = container.quaternion;
+	return [
+		p.x, p.y, p.z,
+		q.x, q.y, q.z, q.w,
+		vehicle.linearSpeed,
+		vehicle.acceleration,
+		vehicle.inputX,
+		vehicle.nosActive ? 1 : 0,
+		vehicle.nosIntensity,
+		vehicle.driftIntensity,
+	];
+
+}
+
 function parseRecording( raw ) {
 
 	if ( typeof raw !== 'string' ) return null;
@@ -60,7 +83,7 @@ function parseRecording( raw ) {
 
 	for ( const row of frames ) {
 
-		if ( ! Array.isArray( row ) || row.length !== 7 ) return null;
+		if ( ! Array.isArray( row ) || row.length !== FRAME_LEN ) return null;
 
 		for ( const n of row ) {
 
@@ -87,12 +110,14 @@ export class BestLapGhost {
 
 		this.recording = null;
 
-		this.root = new THREE.Group();
-		const clone = vehicleModel.clone( true );
-		this.root.add( clone );
-		applyGhostMaterials( this.root );
-		this.root.visible = false;
-		this.scene.add( this.root );
+		this.ghostVehicle = new Vehicle();
+		const ghostGroup = this.ghostVehicle.init( vehicleModel );
+		applyGhostMaterials( ghostGroup );
+		this.ghostVehicle.container.visible = false;
+		this.scene.add( this.ghostVehicle.container );
+
+		this.ghostSmoke = new SmokeTrails( scene, { opacityScale: PARTICLE_OPACITY_SCALE } );
+		this.ghostNos = new NosTaillightTrails( scene, { opacityScale: PARTICLE_OPACITY_SCALE } );
 
 		this._loadFromStorage();
 
@@ -115,7 +140,7 @@ export class BestLapGhost {
 
 	}
 
-	record( dt, lapTimer, container ) {
+	record( dt, lapTimer, vehicle ) {
 
 		if ( ! lapTimer.enabled || ! lapTimer.running ) return;
 
@@ -124,24 +149,20 @@ export class BestLapGhost {
 		while ( this.sampleAcc >= SAMPLE_DT ) {
 
 			this.sampleAcc -= SAMPLE_DT;
-			const p = container.position;
-			const q = container.quaternion;
-			this.buffer.push( [ p.x, p.y, p.z, q.x, q.y, q.z, q.w ] );
+			this.buffer.push( frameFromVehicle( vehicle.container, vehicle ) );
 
 		}
 
 	}
 
 	/**
-	 * Invoked from LapTimer onLapComplete; pass live vehicle container for a closing keyframe when isBest.
+	 * Invoked from LapTimer onLapComplete; pass live vehicle for a closing keyframe when isBest.
 	 */
-	commitLap( { isBest, lastLap }, container ) {
+	commitLap( { isBest, lastLap }, vehicle ) {
 
 		if ( isBest ) {
 
-			const p = container.position;
-			const q = container.quaternion;
-			this.buffer.push( [ p.x, p.y, p.z, q.x, q.y, q.z, q.w ] );
+			this.buffer.push( frameFromVehicle( vehicle.container, vehicle ) );
 
 			this._trySaveRecording( lastLap );
 
@@ -187,47 +208,85 @@ export class BestLapGhost {
 
 	}
 
-	updatePlayback( lapTimer ) {
+	update( dt, lapTimer ) {
 
 		const rec = this.recording;
+		const gv = this.ghostVehicle;
 
 		if ( ! rec || ! lapTimer.enabled ) {
 
-			this.root.visible = false;
+			gv.container.visible = false;
 			return;
 
 		}
 
 		const { lapTime, sampleHz, frames } = rec;
-		const dt = 1 / sampleHz;
+		const sampleDt = 1 / sampleHz;
 		const n = frames.length;
 
 		if ( n < 2 ) {
 
-			this.root.visible = false;
+			gv.container.visible = false;
 			return;
 
 		}
 
 		const t = Math.min( lapTimer.currentLapTime, lapTime );
-		const span = ( n - 1 ) * dt;
+		const span = ( n - 1 ) * sampleDt;
 		const tPlay = Math.min( t, span );
-		const f = tPlay / dt;
+		const f = tPlay / sampleDt;
 		const i0 = Math.min( Math.floor( f ), n - 2 );
 		const u = f - i0;
+		const nearestIdx = Math.min( n - 1, Math.max( 0, Math.round( f ) ) );
+
+		const pastEnd = lapTimer.currentLapTime >= lapTime - 1e-4;
 
 		const a = frames[ i0 ];
 		const b = frames[ i0 + 1 ];
 
-		_p0.set( a[ 0 ], a[ 1 ], a[ 2 ] );
-		_p1.set( b[ 0 ], b[ 1 ], b[ 2 ] );
-		this.root.position.lerpVectors( _p0, _p1, u );
+		if ( pastEnd ) {
 
-		_q0.set( a[ 3 ], a[ 4 ], a[ 5 ], a[ 6 ] );
-		_q1.set( b[ 3 ], b[ 4 ], b[ 5 ], b[ 6 ] );
-		this.root.quaternion.copy( _q0 ).slerp( _q1, u );
+			const L = frames[ n - 1 ];
+			gv.container.position.set( L[ 0 ], L[ 1 ], L[ 2 ] );
+			gv.container.quaternion.set( L[ 3 ], L[ 4 ], L[ 5 ], L[ 6 ] );
+			gv.linearSpeed = L[ 7 ];
+			gv.acceleration = L[ 8 ];
+			gv.inputX = L[ 9 ];
+			gv.inputZ = 0;
+			gv.nosActive = false;
+			gv.nosIntensity = 0;
+			gv.driftIntensity = 0;
 
-		this.root.visible = true;
+			this.ghostSmoke.update( dt, gv );
+			this.ghostNos.update( dt, gv );
+
+		} else {
+
+			_p0.set( a[ 0 ], a[ 1 ], a[ 2 ] );
+			_p1.set( b[ 0 ], b[ 1 ], b[ 2 ] );
+			gv.container.position.lerpVectors( _p0, _p1, u );
+
+			_q0.set( a[ 3 ], a[ 4 ], a[ 5 ], a[ 6 ] );
+			_q1.set( b[ 3 ], b[ 4 ], b[ 5 ], b[ 6 ] );
+			gv.container.quaternion.copy( _q0 ).slerp( _q1, u );
+
+			gv.linearSpeed = THREE.MathUtils.lerp( a[ 7 ], b[ 7 ], u );
+			gv.acceleration = THREE.MathUtils.lerp( a[ 8 ], b[ 8 ], u );
+			gv.inputX = THREE.MathUtils.lerp( a[ 9 ], b[ 9 ], u );
+			gv.inputZ = 0;
+			gv.nosIntensity = THREE.MathUtils.lerp( a[ 11 ], b[ 11 ], u );
+			gv.driftIntensity = THREE.MathUtils.lerp( a[ 12 ], b[ 12 ], u );
+			gv.nosActive = frames[ nearestIdx ][ 10 ] >= 0.5;
+
+			gv.updateBody( dt );
+			gv.updateWheels( dt );
+
+			this.ghostSmoke.update( dt, gv );
+			this.ghostNos.update( dt, gv );
+
+		}
+
+		gv.container.visible = true;
 
 	}
 
