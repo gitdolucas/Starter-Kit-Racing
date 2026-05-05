@@ -12,6 +12,7 @@ import { SmokeTrails, NosTaillightTrails } from './Particles.js';
 import { DriftMarks } from './DriftMarks.js';
 import { GameAudio } from './Audio.js';
 import { LapTimer } from './LapTimer.js';
+import { BestLapGhost } from './BestLapGhost.js';
 import { CameraHud } from './CameraHud.js';
 import { NosHud } from './NosHud.js';
 import { ColorMapGLTFLoader } from './Loader.js';
@@ -234,7 +235,12 @@ async function init() {
 	const audio = new GameAudio();
 	audio.init( cam.camera );
 
-	const lapTimer = new LapTimer( customCells, mapParam );
+	const bestLapGhost = new BestLapGhost( scene, mapParam, models[ 'vehicle-truck-yellow' ] );
+	const lapTimer = new LapTimer( customCells, mapParam, ( detail ) => {
+
+		bestLapGhost.commitLap( detail, vehicle.container );
+
+	} );
 	const nosHud = new NosHud( controls );
 
 	const cameraHud = new CameraHud( {
@@ -274,6 +280,8 @@ async function init() {
 
 		vehicle.update( dt, input );
 
+		bestLapGhost.record( dt, lapTimer, vehicle.container );
+
 		if ( input.cycleCamera ) cam.advanceMode( vehicle.spherePos );
 		nosHud.update( vehicle );
 
@@ -294,6 +302,8 @@ async function init() {
 
 		const hasInput = input.touchActive || Math.abs( input.x ) > 0.05 || Math.abs( input.z ) > 0.05;
 		lapTimer.update( dt, vehicle.spherePos, hasInput );
+
+		bestLapGhost.updatePlayback( lapTimer );
 
 		cameraHud.update( cam );
 

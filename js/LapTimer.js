@@ -43,9 +43,10 @@ function formatTime( t ) {
 
 export class LapTimer {
 
-	constructor( cells, trackId ) {
+	constructor( cells, trackId, onLapComplete ) {
 
 		this.storageKey = STORAGE_PREFIX + ( trackId || 'default' );
+		this.onLapComplete = typeof onLapComplete === 'function' ? onLapComplete : null;
 		this.lap = 1;
 		this.bestLap = loadBest( this.storageKey );
 		this.lastLap = null;
@@ -190,6 +191,12 @@ export class LapTimer {
 			[ { color }, { color }, { color: '#fff' } ],
 			{ duration: 1200, easing: 'ease-out' }
 		);
+
+		if ( this.onLapComplete ) {
+
+			this.onLapComplete( { isBest, lastLap: this.lastLap, lap: this.lap } );
+
+		}
 
 	}
 
